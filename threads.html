@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hanh.cherry • Threads</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #fff; color: #000; line-height: 1.4;
+  }
+  img { display: block; }
+
+  /* Logo threads ở góc trên trái */
+  .brand {
+    position: fixed; top: 18px; left: 26px; z-index: 60;
+    display: flex; align-items: center; gap: 4px;
+    font-style: italic; font-weight: 800; font-size: 26px; letter-spacing: -.5px; color: #000;
+  }
+  .brand svg { width: 34px; height: 34px; }
+
+  /* Thanh trên cùng */
+  .topbar {
+    position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.9);
+    backdrop-filter: blur(8px); border-bottom: 1px solid #eee;
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px 16px; max-width: 620px; margin: 0 auto; position: relative;
+  }
+  .topbar .back { position: absolute; left: 16px; font-size: 24px; cursor: pointer; color: #000; }
+  .topbar .center { text-align: center; }
+  .topbar .title { font-size: 16px; font-weight: 700; }
+  .topbar .views { font-size: 13px; color: #999; }
+  .topbar .more { position: absolute; right: 16px; font-size: 18px; color: #555; cursor: pointer;
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid #ddd;
+    display: flex; align-items: center; justify-content: center; }
+
+  .container { max-width: 620px; margin: 0 auto; padding: 0 16px; }
+
+  /* Avatar + badge dấu cộng */
+  .av-wrap { position: relative; flex-shrink: 0; }
+  .av-wrap .badge {
+    position: absolute; right: -3px; bottom: -3px; width: 17px; height: 17px;
+    background: #fff; border: 1px solid #ddd; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #000;
+  }
+
+  /* Bài đăng chính */
+  .post { padding: 16px 0 12px; }
+  .post-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .post-head .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #efefef; }
+  .post-head .who { flex: 1; }
+  .post-head .name { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 5px; }
+  .post-head .verified { color: #0095f6; font-size: 13px; }
+  .post-head .time { color: #999; font-size: 14px; }
+  .post-head .more { color: #999; font-size: 20px; cursor: pointer; }
+
+  .post-text { font-size: 16px; line-height: 1.5; margin: 4px 0 14px; white-space: pre-wrap; }
+
+  /* Hàng nút có số đếm */
+  .actions { display: flex; gap: 8px; padding: 4px 0 12px; }
+  .actions .act { display: flex; align-items: center; gap: 6px; font-size: 21px; color: #000;
+    cursor: pointer; padding: 4px 8px 4px 4px; border-radius: 20px; }
+  .actions .act .num { font-size: 14px; color: #555; }
+
+  .post-meta { color: #999; font-size: 14px; padding-bottom: 14px; border-bottom: 1px solid #eee; }
+
+  .sortrow { display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0; font-size: 14px; color: #555; }
+  .sortrow .top { font-weight: 600; color: #000; }
+  .sortrow .act-link { color: #999; }
+
+  /* Mỗi comment là 1 self-reply của chính chủ, nối thành chuỗi */
+  .reply { display: flex; gap: 10px; padding: 4px 0 0; position: relative; }
+  .reply .left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .reply .avatar { width: 36px; height: 36px; border-radius: 50%; background: #efefef; object-fit: cover; }
+  .reply .thread-line { width: 2px; flex: 1; background: #e6e6e6; margin: 6px 0 0; }
+  .reply:last-child .thread-line { display: none; }
+  .reply .body { flex: 1; padding: 0 0 16px; border-bottom: 1px solid #f4f4f4; }
+  .reply:last-child .body { border-bottom: none; }
+  .reply .top { display: flex; align-items: center; gap: 6px; }
+  .reply .rname { font-weight: 600; font-size: 14px; }
+  .reply .verified { color: #0095f6; font-size: 12px; }
+  .reply .rtime { color: #999; font-size: 14px; margin-left: auto; }
+  .reply .rtext { font-size: 15px; line-height: 1.5; margin: 4px 0 8px; white-space: pre-wrap; }
+  .reply .ractions { display: flex; gap: 10px; }
+  .reply .ractions .act { display: flex; align-items: center; gap: 5px; font-size: 18px; color: #000; cursor: pointer; }
+  .reply .ractions .act .num { font-size: 13px; color: #777; }
+</style>
+</head>
+<body>
+
+  <!-- Logo threads (bản dựng lại) -->
+  <div class="brand">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M50 13 C28 13 13 30 13 50 C13 70 28 87 50 87 C68 87 80 78 84 63"
+            fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
+      <path d="M50 31 C39 31 31 40 31 50 C31 61 40 69 50 69 C61 69 69 60 69 50 C69 42 63 37 56 37 C50 37 46 41 46 47 C46 53 51 57 57 55"
+            fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
+    </svg>
+    <span>threads</span>
+  </div>
+
+  <div class="topbar">
+    <span class="back" onclick="history.back()">‹</span>
+    <div class="center">
+      <div class="title">Thread</div>
+      <div class="views" id="threadViews">1,2 Tr lượt xem</div>
+    </div>
+    <span class="more">⋯</span>
+  </div>
+
+  <div class="container">
+    <div class="post">
+      <div class="post-head">
+        <div class="av-wrap">
+          <img class="avatar" src="images/avatar.jpg" onerror="this.style.visibility='hidden'">
+          <span class="badge">+</span>
+        </div>
+        <div class="who">
+          <div class="name">hanh.cherry <span class="verified">✔</span></div>
+          <div class="time">8 giờ trước</div>
+        </div>
+        <span class="more">⋯</span>
+      </div>
+
+      <!-- NỘI DUNG BÀI ĐĂNG CHÍNH -->
+      <div class="post-text" id="postText">về tới HN và an vị tại nhà rồi mới dám kể chuyện đã gặp trong chuyến đi Ninh Bình 3 ngày vừa rồi. khuyến cáo ko đọc vào buổi đêm 👻</div>
+
+      <div class="actions">
+        <span class="act" id="likeBtn">♡ <span class="num" id="likeNum">38,4K</span></span>
+        <span class="act">💬 <span class="num">2.847</span></span>
+        <span class="act">🔁 <span class="num">1.203</span></span>
+        <span class="act">➤ <span class="num">9.561</span></span>
+      </div>
+    </div>
+
+    <div class="sortrow">
+      <span class="top">↕ Hàng đầu ⌄</span>
+      <span class="act-link">Xem hoạt động ›</span>
+    </div>
+
+    <div id="replies"></div>
+  </div>
+
+<script>
+  /* =======================================================
+     CẤU HÌNH
+     - threadViews / số trên các nút bài chính: sửa thẳng ở phần HTML trên.
+     - Các comment (self-reply của hanh.cherry) ở mảng REPLIES dưới đây.
+       likes = số tương tác (vài trăm).
+     ======================================================= */
+  const REPLIES = [
+    { n:1,  likes:842, text:`tiện đi làm ngày 30 nên t du lịch NB vài ngày luôn, đi 1 mình thôi nên t cũng ko có kế hoạch gì cả. t tới NB vào buổi trưa, sau khi check in homestay và chuẩn bị sửa soạn xong thì cũng muộn rồi nhưng vì quá chán nên t vẫn quyết định đi Tràng An. chuyến đò t lên tầm 17h10, tức chuyến cuối cùng trong ngày nên rất vắng` },
+    { n:2,  likes:391, text:`trên đò ngoài t ra thì còn cô lái đò và 1 đôi yêu nhau, tổng 4 người. do đang là mùa hè nên mặt trời lặn muộn, tầm 17-18h trời vẫn sáng trưng luôn á nên đoạn đi thì bình thường lắm. t ko nhớ t đi tuyến nào nhưng đoạn về thì đi vô nhiều hang động lắm, hình như tầm 3-4 hang gì đó. lúc đó thì trời bắt đầu tối rồi và mọi chuyện chính thức bắt đầuuuuu` },
+    { n:3,  likes:567, text:`vì toàn là người lạ mới gặp lần đầu mà nên trên đò ko ai có thể biết tên t được. trong lúc đi về, mỗi lần đi vô hang động là t lại nghe thấy tiếng có người gọi tên t với tần suất liên tục, dồn dập. âm thanh đó như kiểu phát ra từ chính đầu t vậy á, thế nên đầu t rất đau nhưng t ko có cách nào giải quyết được vấn đề cả` },
+    { n:4,  likes:733, text:`đỉnh điểm là khi đi vô 1 cái hang nào đó dài nhất trong các hang, thiệt ra h nghĩ lại cũng ko dài lắm đâu nhưng cảm giác lúc đó như bất tận ko thấy ánh sáng vậy =))) trong hang đó thì tiếng gọi càng rõ ràng và dồn dập hơn, nếu ở những hang khác t chỉ nghe thấy giọng nữ thì ở hang này t nghe thấy tùm lum loại giọng` },
+    { n:5,  likes:918, text:`có âm thanh phát ra trong đầu thôi thúc t cởi áo phao ra và nhảy xuống dưới luôn đi. nếu trong trường hợp ko thể khống chế bản thân được nữa thì thật sự sẽ chết đuối ở đó luôn mất nhưng cũng may, có thể do ông bà tổ tiên gánh còng lưng nên t ko nghe theo âm thanh đó` },
+    { n:6,  likes:612, text:`dù ko sợ ma nhưng t có sợ chết, thế nên đoạn này t đã nhận thức được mức độ nguy hiểm rồi. t hỏi cô lái đò tận 3 lần là bao h sẽ ra khỏi hang này mà cô vẫn ko trả lời t, nhưng với âm lượng của t thì t chắc chắn cô phải nghe được í. thế nên t nghĩ cô bị che tai hoặc t tạm thời tàng hình r, vậy nên t lựa chọn khấn xin ông bà tổ tiên phù hộ` },
+    { n:7,  likes:705, text:`t ko biết khấn như nào mới đúng nên t khấn theo bản năng mách bảo thôi, may sao là sau khi khấn thì âm thanh thôi thúc t hành động ko còn nữa, nhưng âm thanh gọi tên thì vẫn cứ văng vẳng bên tai. nói chung khó tả lắm t ko biết nói sao cả =)))) mặc dù t rất khó hiểu về cô lái đò nhưng t ko dám quay đầu lại nhìn cô để xác nhận nghi vấn vì t tưởng tượng ra cảnh cô sẽ nở nụ cười dài đến mang tai như phim kinh dị hay có` },
+    { n:8,  likes:488, text:`sau đó thì mọi chuyện tạm ổn, nhưng tất nhiên nó sẽ ko dừng ở đó rồi ahihi. kết thúc chuyến thì t lên lại bến đò, như t đã nói rồi, do là chuyến cuối ngày nên thật sự rất vắng, ở bến ko còn ai ngoài t và 2 anh chị yêu nhau đi chung chuyến với t. t cũng sợ đi 1 mình sẽ có chuyện nên t đã bám đuôi theo 2 anh chị kia, nhưng chả hiểu sao quay đi quay lại t ko thấy 2 người đó đâu nữa???` },
+    { n:9,  likes:651, text:`mọi chuyện lại tiếp tục bắt đầu. t ko thể tìm được đường ra ngoài từ chỗ bến đò và t đã lạc quanh đó gần 10 phút, t cứ đi quanh quẩn mà tìm hoài ko ra. tầm mắt của t lại thuận lợi nhìn qua hướng núi và t đã thấy thứ ko nên thấy. nhìn rất rõ và t khẳng định là do nó muốn t thấy nó nên mới rõ ràng như thế` },
+    { n:10, likes:877, text:`1 mình đứng giữa bến đò tối thui, xung quanh là non nước hoang sơ và gặp quá nhiều chuyện kinh dị trong thời gian ngắn nên t hoảng loạn thật sự. t ko khấn ông bà tổ tiên nữa mà t cầu xin nó luôn =))))))) t ko nhớ cụ thể t đã nói gì lắm nhưng đại loại t xin nó tha cho t 😇 sau 5 phút xin xỏ thì t đã thấy con người, cụ thể là 1 đoàn cô chú lái đò hết ca làm việc nên t bám theo đi cùng luôn` },
+    { n:11, likes:534, text:`đó là ngày đầu tiên tới NB và đi Tràng An, tức là ngày 29/5. sau khi về lại homestay thì t đã bình tĩnh hơn và từ đó luôn mang theo 1 con dao trong túi xách vì theo t nhớ làm vậy sẽ tránh được ma quỷ =))) nhưng t vẫn có rất nhiều thắc mắc:
+- tại sao nó lại biết tên t? vì theo t biết chỉ khi có người nào đó gọi tên thật của t thì nó mới biết được và đi theo nếu hợp vía
+- do t hợp vía hay t làm gì mạo phạm? tại vì mọi thứ nó cứ nửa vời, đứng giữa ranh giới nó chỉ muốn dọa và nó muốn hại t` },
+    { n:12, likes:723, text:`nhưng ngày 29/5 chưa phải ngày kinh hoàng nhất, ngày tiếp theo - tức đêm 30/5 chuyển qua 31/5 mới thật sự làm t nghĩ t sẽ bỏ mạng tại NB luôn bởi vì hôm đó có show forestival nên t về rất muộn, tầm 1h30 sáng ngày 31/5 t mới bắt đầu đặt xe đi về home` },
+    { n:13, likes:469, text:`do ko book được hotel gần venue nên t bắt buộc phải ở rất rất xa, cụ thể là Tam Cốc và cách venue cỡ 20km. bởi vì đêm muộn rồi rất ít xe công nghệ nên t ko book được oto mà phải đi bike về (quyết định sai lầm nhất cuộc đời)` },
+    { n:14, likes:588, text:`trục đường chính đi về khá đông xe cộ nên anh grab đã đi đường vòng qua dãy núi này. vấn đề là xuyên suốt quãng đường ko hề có 1 cái đèn đường nào cả và thứ ánh sáng duy nhất xuất hiện là đèn xe máy nhưng thực sự nó ko hề đáng kể vào lúc 1h30 sáng. bên trái là hồ nước, bên phải là dãy núi nên cảm giác cực kì đáng sợ` },
+    { n:15, likes:801, text:`ai đang đọc thì bắt đầu chuẩn bị tâm lý nha =)))
+ngay khi anh grab bắt đầu đi tuyến đường qua núi là t lại cực kì đau đầu, thật sự t biết là sắp có chuyện xảy ra rồi nhưng t ko biết phải làm gì cả. t đã hỏi anh í là có đi đường khác được ko, chứ đường này đi sợ quá em hơi run nhưng ảnh ko trả lời t 😀 t đã spam hỏi 3-4 lần nhưng ảnh vẫn ko hề trả lời và vẫn tiếp tục phóng như tên lửa` },
+    { n:16, likes:642, text:`tại ảnh ko chịu trả lời t nên t đã chọt chọt vô vai ảnh để chờ lời hồi đáp. chọt 1 lần có thể ko biết chứ chọt chục lần mà ảnh vẫn ko phản ứng? đoạn này t bất lực và tuyệt vọng r, t vừa khấn xin ông bà tổ tiên gánh cho t thêm lần nữa, vừa gọi điện tìm sự cứu giúp từ người duy nhất có thể giúp t ngay lập tức tại thời điểm đó là nyc =))))))))) nyc t cũng đi làm ở forestival luôn thế nên đang ở gần chỗ t` },
+    { n:17, likes:935, text:`ô kê giờ vô đoạn ghê nhất. sau khi phóng như tên lửa thì anh grab đột ngột dừng xe lại, cụ thể là giữa những dãy núi và cái hồ nước, và ảnh bảo t là em xuống xe đi, t rất hoang mang nhưng t vẫn bình tĩnh hỏi lý do. sơ qua cuộc hội thoại thế này:
+🚖: thì em cứ xuống đi
+🧍‍♀️: ủa giờ anh bảo em xuống giữa chỗ tối thui này để làm gì
+🚖: thế bây h em có xuống ko
+ý là mặt ảnh rất đáng sợ, giờ t ko biết tả sao nhưng tại thời điểm đó thì t ko dám tranh luận thêm` },
+    { n:18, likes:557, text:`t chỉ có thể nài nỉ ảnh chờ tới khi nyc t tới đón t rồi ảnh hẵng đi, chứ thân con gái để t giữa rừng núi lúc 1h30 sáng thì t sống sao nổi. vậy là ảnh cũng đồng ý và chờ tới khi nyc t tới đón thì mới đi về. t cũng ko khiếu nại lên app được vì t đi chuyến ngoài cho ảnh ko bị cắt % app =)))))))` },
+    { n:19, likes:498, text:`sau khi lên xe thì t đã kể sơ qua cho nyc nghe, gia đình nyc t cũng có chút liên quan tới tâm linh nên ảnh biết kha khá về mấy chuyện thế này. ảnh kết luận lại là h t ko được ở lại NB nữa và nên về HN trong đêm luôn. thì t cũng ok nghe theo, t còn kệ luôn hành lý ở home và dự định về HN, hành lý có gì tính sau cũng được` },
+    { n:20, likes:613, text:`nhưng đời thì ko như là mơ, bọn t đi được cỡ 3 phút thì lại tiếp tục bị kẹt ở dãy núi đó. ý là xe đang đi rất bình thường thì tự dưng bị dừng lại giữa chừng, mà sau khi nyc t kiểm tra toàn bộ thì xe hoàn toàn ko có vấn đề gì cả, cứ tự dưng bị vậy thôi. đoạn này t hoảng lắm, t nghĩ "nó" ko cho phép t rời khỏi chỗ này` },
+    { n:21, likes:702, text:`kiến thức về vấn đề tâm linh của nyc t cũng có giới hạn thôi thế nên ảnh đã gọi điện tham vấn mẹ (cũng hơi ngại vì gọi cho bác lúc 1h30 sáng). và trong lúc nyc gọi thì t nhìn ra bên ngoài và lại tiếp tục thấy "nó" (thứ t gặp ở Tràng An hôm 29/5). lần này khoảng cách gần hơn rất rất nhiều và t cảm giác t bị đóng băng luôn, cơ thể t ko cử động được` },
+    { n:22, likes:889, text:`cuộc gọi thoại của nyc t và mẹ ảnh kéo dài cỡ 4 phút và xuyên suốt 4 phút đó t phải đối diện với "nó". cả 2 cứ nhìn nhau như vậy và trong đầu t lại văng vẳng âm thanh giọng nữ, nói rằng nó sẽ ko cho t rời khỏi chỗ này đâu. t hiểu ý nó muốn nói là t sẽ chết luôn ở đây, thế nên sợi dây hi vọng của t cũng đâu còn nữa, t nghĩ đó là khoảnh khắc cuối đời của t rồi. t đã tự vấn trong đầu là vì sao nó lại làm thế với t nhưng nó ko trả lời` },
+    { n:23, likes:546, text:`sau khi nyc t kết thúc cuộc gọi thì t cũng ko còn thấy "nó" nữa và t trở lại như bình thường, nyc t cũng ko nhận ra từ nãy đến giờ t có gì khác lạ luôn. tổng kết lại thì nyc t bảo bây giờ chỉ còn cách khấn xin tổ tiên bằng tất cả hy vọng thôi, thế nên 2 đứa t đã cùng khấn cầu tai qua nạn khỏi. thì sau tầm 10 phút đầu t có nhẹ đi đôi chút và xe cũng bắt đầu đi được bình thường` },
+    { n:24, likes:471, text:`tuy nhiên trong t thôi thúc 1 dự cảm mãnh liệt là đêm nay t ko nên rời khỏi NB, nếu t cố tình về lại HN trong đêm thì ko chỉ t gặp chuyện mà có thể nyc t cũng bị vạ lây. dù t chả biết dự cảm đó có đúng ko, nhưng t lựa chọn tin tưởng vì t nghĩ đó là ông bà tổ tiên đang dự báo cho t. thế nên t đã phân tích với nyc và quyết định quay trở về homestay` },
+    { n:25, likes:529, text:`nyc t thì ko đồng ý, tại vì rõ ràng từ khi tới NB t gặp quá nhiều chuyện kỳ dị và ko gì có thể đảm bảo nếu về homestay thì mọi thứ sẽ ổn. nói chung bọn t bất đồng quan điểm nhưng mạng t thì t quyết chứ =))) và quan trọng là nếu thật sự tiếp tục có chuyện xảy ra khi về homestay thì ít nhất chỉ 1 mình t chịu ảnh hưởng chứ ko kéo theo người ngoài vào` },
+    { n:26, likes:638, text:`và rồi t vẫn được chở về homestay bình an vô sự, nyc t thì ko ở lại được vì còn có việc ở HN vào sáng sớm. trước khi đi về thì nyc t có cho t gọi video với mẹ của ảnh. bác dặn t là đêm nay có khả năng vẫn sẽ xảy ra chuyện, nhưng bác í cảm nhận là homestay này khá an toàn, thế nên "nó" khó có thể trực tiếp chui vô trong phòng hãm hại t được. "nó" chỉ có thể tác động từ bên ngoài như kiểu mấy âm thanh kì quái thôi` },
+    { n:27, likes:572, text:`nhưng bác dặn tuyệt đối ko được chủ quan, vì thật ra chính bác í cũng khó có thể biết được thứ kia là ma hay quỷ hay thậm chí thứ gì khác mạnh mẽ hơn. bác bảo dù có nghe thấy âm thanh gì thì cũng phải đề phòng, chưa chắc những gì t nghe thấy đã là sự thật đâu` },
+    { n:28, likes:684, text:`trước khi nyc t về thì t nhờ ảnh phủ khăn lên trên tất cả những cái gương có ở trong phòng cho lòng t an tâm hơn chút. sau đó thì t bật đèn full phòng kết hợp nhạc remix đùng đùng trên tivi để trấn an tâm hồn sắp vụn vỡ. mọi chuyện cũng tạm ổn cho tới gần 3h, lúc này t bắt đầu nghe thấy âm thanh đập rất mạnh bên ngoài cửa sổ, đó là dạng tay đập vô chứ ko phải gió đập nhé` },
+    { n:29, likes:756, text:`đoạn đó t nghĩ lời mẹ nyc dặn đúng rồi nên t quyết định bỏ ngoài tai chứ ko quan tâm nữa. nhưng t lại nghe thấy tiếng gõ cửa và giọng chị quản gia homestay hỏi em về chưa. mặc dù nghe khá hợp lý vì chị ấy biết hôm đó t đi làm về muộn nên có thể hỏi thăm, nhưng sau khi ngẫm lại thì t nghĩ thật sự chả có ai 3h sáng đi gõ cửa phòng khách hỏi xem khách đã về chưa í? thế nên t ko trả lời` },
+    { n:30, likes:611, text:`âm thanh đập cửa sổ lẫn cửa phòng cứ càng lúc càng dồn dập và kéo dài cỡ 10 phút. nhưng chính vì lâu như vậy nên t biết "nó" ko có đủ khả năng vô phòng t hay xuất hiện trong đầu t như những lần trước. thế nên t có phần an tâm hơn chút, bật nhạc to hơn và nhắm mắt =)))` },
+    { n:31, likes:567, text:`thì sau đó t ngủ thiếp đi lúc nào t cũng chả biết. t có 1 giấc mơ như lời dặn dò của ông bà tổ tiên á, thiệt sự thì cái này t ko chắc chắn lắm, sau khi tìm hiểu qua thì t cho rằng cũng có thể do tâm lý t đang bị sợ hãi quá mức nên tự khích lệ tinh thần =))) t ko nhớ trong mơ t thấy gì cả, t chỉ nhớ được có ai đó dặn t ngày 31 phải về HN trong tầm 15-16h chiều, nếu có thể thì hãy nhờ người chờ t về lại homestay (tức nyc t) vì người đó có khả năng bảo vệ t an toàn (đoạn này t ko hiểu vì sao)` },
+    { n:32, likes:623, text:`người đó còn dặn t nếu thật sự ko về được trong khung giờ 15-16h thì nhất định phải ở lại homestay này tiếp vì nơi này đủ mạnh để "nó" ko trực tiếp tiếp cận t được. trộm vía là sáng nay sau khi ngủ dậy t đã nhờ nyc và ảnh đã tới đón t về HN. sau khi về thì t đã lên thắp hương gia tiên và đi chùa ngay lập tức rùi` },
+    { n:33, likes:914, text:`chuyện kết thúc tại đây, đội ơn ông bà tổ tiên + nyc + mẹ nyc đã hợp lực giải cứu t. có rất nhiều chuyện mà đến giờ t cũng ko hiểu vì sao t lại lựa chọn làm vậy vào thời điểm đó, cụ thể là anh grab. bình thường t là người rất ovtk và cẩn thận, dù có ở địa bàn HN t cũng ko bao giờ đi chuyến ngoài dù t có gấp gáp thế nào. thế mà đêm qua t lại dám trao gửi tính mạng vô 1 người xa lạ giữa rừng núi hiu quạnh... t ko dám hỏi han gì ảnh cả nhưng t nghĩ ảnh đã thấy gì đó nên mới cả quyết ko chờ t về` },
+  ];
+
+  const AVATAR = 'images/avatar.jpg';
+  function fmt(n){ return n.toLocaleString('vi-VN'); }
+
+  const box = document.getElementById('replies');
+  REPLIES.forEach(r => {
+    const el = document.createElement('div');
+    el.className = 'reply';
+    el.innerHTML = `
+      <div class="left">
+        <div class="av-wrap">
+          <img class="avatar" src="${AVATAR}" onerror="this.style.visibility='hidden'">
+          <span class="badge">+</span>
+        </div>
+        <div class="thread-line"></div>
+      </div>
+      <div class="body">
+        <div class="top">
+          <span class="rname">hanh.cherry <span class="verified">✔</span></span>
+          <span class="rtime">8 giờ</span>
+        </div>
+        <div class="rtext">(${r.n}) ${r.text}</div>
+        <div class="ractions">
+          <span class="act">♡ <span class="num">${fmt(r.likes)}</span></span>
+          <span class="act">💬</span>
+          <span class="act">🔁</span>
+          <span class="act">➤</span>
+        </div>
+      </div>`;
+    box.appendChild(el);
+  });
+
+  const likeBtn = document.getElementById('likeBtn');
+  likeBtn.addEventListener('click', () => {
+    if (likeBtn.firstChild.textContent.trim().startsWith('♡')) {
+      likeBtn.firstChild.textContent = '♥ '; likeBtn.style.color = '#ff3040';
+    } else {
+      likeBtn.firstChild.textContent = '♡ '; likeBtn.style.color = '#000';
+    }
+  });
+</script>
+</body>
+</html>
